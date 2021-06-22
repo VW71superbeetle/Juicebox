@@ -3,7 +3,7 @@ const { Client } = require('pg'); // imports the pg module
 // supply the db name and location of the database
 const client = new Client('postgres://localhost:5432/juicebox-dev');
 
-
+// User Functions
 async function getAllUsers() {
     const { rows } = await client.query(`
         SELECT id, username, name, location, active
@@ -12,9 +12,39 @@ async function getAllUsers() {
   
     return rows;
 }
-  
 
-// User Functions
+async function getUserById(userId) {
+    try {
+        const { rows: [user] } = await client.query(`
+            SELECT 
+                id,
+                username,
+                name,
+                location,
+                active
+            FROM users
+            WHERE id=${ userId };
+        `);
+
+        if (!user) {
+            return null;
+        }
+
+        user.posts = await getPostsByUser(userId)
+
+        //It looks like the process of adding the posts node to User 
+        //invalidates/clears out the post author node
+        // console.log ("User posts", user.posts)
+        // console.log("Final User Object", user)
+        return user;
+        
+
+    } catch (error) {
+        throw error;
+    }
+
+}
+
 async function createUser({ username, password, name, location }) {
     try {
         const {rows: [user]} = await client.query(`
@@ -55,8 +85,8 @@ async function updateUser(id, fields = {}) {
     }
 }
 
-// Post Functions
 
+// Post Functions
 async function createPost({ authorId, title, content, tags=[] }) {
     try {
         const {rows: [post]} = await client.query(`
@@ -157,39 +187,39 @@ async function getPostsByUser(userId) {
         throw error;
     }
 }
-
-async function getUserById(userId) {
+async function getPostById(postId) {
     try {
-        const { rows: [user] } = await client.query(`
-            SELECT 
-                id,
-                username,
-                name,
-                location,
-                active
-            FROM users
-            WHERE id=${ userId };
-        `);
+        const { rows: [ post ]  } = await client.query(`
+        SELECT *
+        FROM posts
+        WHERE id=$1;
+        `, [postId]);
 
-        if (!user) {
-            return null;
-        }
+        const { rows: tags } = await client.query(`
+        SELECT tags.*
+        FROM tags
+            JOIN post_tags ON tags.id=post_tags."tagId"
+        WHERE post_tags."postId"=$1;
+        `, [postId])
 
-        user.posts = await getPostsByUser(userId)
+        const { rows: [author] } = await client.query(`
+        SELECT id, username, name, location
+        FROM users
+        WHERE id=$1;
+        `, [post.authorId])
 
-        //It looks like the process of adding the posts node to User 
-        //invalidates/clears out the post author node
-        // console.log ("User posts", user.posts)
-        // console.log("Final User Object", user)
-        return user;
+        post.tags = tags;
+        post.author = author;
         
-
+        delete post.authorId;
+        // console.log("GetPostByID", post)
+        return post;
     } catch (error) {
         throw error;
     }
-
 }
 
+// Tag Functions
 async function createTags(tagList) {
     if (tagList.length === 0) { 
         return; 
@@ -206,12 +236,6 @@ async function createTags(tagList) {
     // then we can use (${ selectValues }) in our string template
   
     try {
-      // insert the tags, doing nothing on conflict
-      // returning nothing, we'll query after
-  
-      // select all tags where the name is in our taglist
-      // return the rows from the query
-
         await client.query(`
             INSERT INTO tags(name)
             VALUES (${insertValues})
@@ -272,37 +296,16 @@ async function getPostsByTagName(tagName) {
     }
 } 
 
-async function getPostById(postId) {
-    try {
-        const { rows: [ post ]  } = await client.query(`
+async function getAllTags() {
+    const { rows } = await client.query(`
         SELECT *
-        FROM posts
-        WHERE id=$1;
-        `, [postId]);
-
-        const { rows: tags } = await client.query(`
-        SELECT tags.*
-        FROM tags
-            JOIN post_tags ON tags.id=post_tags."tagId"
-        WHERE post_tags."postId"=$1;
-        `, [postId])
-
-        const { rows: [author] } = await client.query(`
-        SELECT id, username, name, location
-        FROM users
-        WHERE id=$1;
-        `, [post.authorId])
-
-        post.tags = tags;
-        post.author = author;
-        
-        delete post.authorId;
-        // console.log("GetPostByID", post)
-        return post;
-    } catch (error) {
-        throw error;
-    }
+        FROM tags;
+    `);
+    
+    return rows;
 }
+
+
 // and export them
 module.exports = {
     client,
@@ -317,5 +320,6 @@ module.exports = {
     createTags,
     createPostTag,
     addTagsToPost,
-    getPostsByTagName
+    getPostsByTagName,
+    getAllTags
 }
