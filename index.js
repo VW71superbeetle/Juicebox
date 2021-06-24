@@ -1,4 +1,5 @@
 // Environment Variables
+require('dotenv').config();
 const PORT = 3000;
 
 //Requires
