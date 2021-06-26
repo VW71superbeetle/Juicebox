@@ -1,11 +1,11 @@
-
+// Requires
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { getAllUsers, getUserByUsername, createUser } = require('../db');
+const { requireUser } = require('./utils');
 
+// Declarations
 const usersRouter = express.Router();
-
-
 
 usersRouter.use((req, res, next) => {
     console.log("A request is being made to /users");
@@ -44,7 +44,7 @@ usersRouter.post('/login', async (req, res, next) => {
             });
         }
     } catch(error) {
-        console.log(error);
+        console.log("x", error);
         next(error);
     }
 });

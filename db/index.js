@@ -139,7 +139,6 @@ async function updatePost(postId, fields = {}) {
             RETURNING *;
             `, Object.values(fields));
         }
-        console.log("1")
         // return early if there's no tags to update
         if (tags === undefined) {
             return await getPostById(postId);
@@ -210,6 +209,12 @@ async function getPostById(postId) {
         WHERE id=$1;
         `, [postId]);
 
+        if (!post) {
+            throw {
+                name: "PostNotFoundError",
+                message: "Could not find a post with that postId"
+            };
+        }
         const { rows: tags } = await client.query(`
         SELECT tags.*
         FROM tags
@@ -227,7 +232,6 @@ async function getPostById(postId) {
         post.author = author;
         
         delete post.authorId;
-        // console.log("GetPostByID", post)
         return post;
     } catch (error) {
         throw error;
@@ -337,5 +341,6 @@ module.exports = {
     createPostTag,
     addTagsToPost,
     getPostsByTagName,
-    getAllTags
+    getAllTags,
+    getPostById
 }
