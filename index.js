@@ -1,6 +1,6 @@
 // Environment Variables
 require('dotenv').config();
-const PORT = 3000;
+const { PORT = 3000 } = process.env
 
 //Requires
 const express = require('express');
